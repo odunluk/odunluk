@@ -16,10 +16,10 @@ type CharField struct {
 	minLength		*int
 }
 
-func (f *CharField) init(args *initArgs) {
-	f.Field.init(args)
+func (f *CharField) Init(args *InitArgs) {
+	f.Field.Init(args)
 
-	defaultArgs := initArgs{
+	defaultArgs := InitArgs{
 		"allowBlank": false,
 		"trimWhiteSpace": true,
 		"maxLength": nil,
@@ -38,15 +38,15 @@ func (f *CharField) init(args *initArgs) {
 	f.minLength = _args["minLength"].(*int)
 }
 
-func (f *CharField) getDefaultMessages() *Messages {
+func (f *CharField) GetDefaultMessages() *Messages {
 	return &Messages{
 		"invalid": "Invalid string value",
 	}
 }
 
-func (f *CharField) toInternalValue(data interface{}) (interface{}, *errors.ValidationError) {
+func (f *CharField) ToInternalValue(data interface{}) (interface{}, *errors.ValidationError) {
 	if reflect.ValueOf(data).Kind() == reflect.Bool {
-		return nil, f.fail("invalid")
+		return nil, f.Fail("invalid")
 	}
 
 	var str interface{}= fmt.Sprintf("%v", data)

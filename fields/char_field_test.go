@@ -9,13 +9,13 @@ import (
 func TestToInternalValue(t *testing.T) {
 	f := &CharField{}
 
-	v, _ := f.toInternalValue("foo")
+	v, _ := f.ToInternalValue("foo")
 
 	if ! reflect.DeepEqual(v.(string), "foo") {
 		t.Fail()
 	}
 
-	nilValue, err := f.toInternalValue(true)
+	nilValue, err := f.ToInternalValue(true)
 
 	if nilValue != nil {
 		t.Fail()

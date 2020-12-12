@@ -13,7 +13,7 @@ func TestBoolFieldRoot(t *testing.T) {
 
 	childField.Parent = rootField
 
-	rootOutput := childField.getRoot()
+	rootOutput := childField.GetRoot()
 
 	if !reflect.DeepEqual(rootField, rootOutput) {
 		t.Fail()
@@ -23,13 +23,13 @@ func TestBoolFieldRoot(t *testing.T) {
 func TestBoolFieldToInternalValue(t *testing.T) {
 	field := &BooleanField{}
 
-	v, _ := field.toInternalValue("true")
+	v, _ := field.ToInternalValue("true")
 
 	if v.(bool) != true {
 		t.Fail()
 	}
 
-	nilValue, err := field.toInternalValue("tT")
+	nilValue, err := field.ToInternalValue("tT")
 
 	if nilValue != nil {
 		t.Fail()
@@ -43,13 +43,13 @@ func TestBoolFieldToInternalValue(t *testing.T) {
 func TestBoolFieldToRepresentation(t *testing.T) {
 	field := &BooleanField{}
 
-	v := field.toRepresentation(true)
+	v := field.ToRepresentation(true)
 
 	if v.(bool) != true {
 		t.Fail()
 	}
 
-	v = field.toRepresentation("false")
+	v = field.ToRepresentation("false")
 
 	if v.(bool) != false {
 		t.Fail()
@@ -59,17 +59,13 @@ func TestBoolFieldToRepresentation(t *testing.T) {
 func TestDefaultMessages(t *testing.T) {
 	field := &BooleanField{}
 
-	var bf BaseField = &BooleanField{}
-
-	field.BaseFieldStruct = bf
-
-	field.init(nil)
+	field.Init(nil)
 
 	messages := Messages{
 		"invalid": "Invalid boolean value",
 	}
 
-	if !reflect.DeepEqual(&messages, field.getDefaultMessages()) {
+	if !reflect.DeepEqual(&messages, field.GetDefaultMessages()) {
 		t.Fail()
 	}
 }

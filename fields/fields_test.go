@@ -14,7 +14,7 @@ func TestRoot(t *testing.T) {
 		Parent: r,
 	}
 
-	rootOutput := childField.getRoot()
+	rootOutput := childField.GetRoot()
 
 	if !reflect.DeepEqual(rootField, rootOutput) {
 		t.Fail()

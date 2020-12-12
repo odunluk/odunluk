@@ -2,16 +2,15 @@ package fields
 
 import (
 	"github.com/odunluk/odunluk/v1/errors"
-	"github.com/odunluk/odunluk/v1/validators"
 )
 
 type BaseField interface {
-	init(args *initArgs)
-	getRoot() BaseField
-	toInternalValue(data interface{}) (interface{}, *errors.ValidationError)
-	toRepresentation(interface{}) interface{}
-	getParent() BaseField
-	isPartial() bool
+	Init(args *InitArgs)
+	GetRoot() BaseField
+	ToInternalValue(data interface{}) (interface{}, *errors.ValidationError)
+	ToRepresentation(interface{}) interface{}
+	GetParent() BaseField
+	IsPartial() bool
 }
 
 type Messages map[string]string
@@ -21,16 +20,16 @@ type Context map[string]interface{}
 type DefaultCaller func() interface{}
 
 type DefaultMessages interface {
-	getDefaultMessages() *Messages
+	GetDefaultMessages() *Messages
 }
 
-type initArgs map[string]interface{}
+type InitArgs map[string]interface{}
 
 type Empty struct {
 	IsEmpty	bool
 }
 
-var empty = Empty{
+var EmptyValue = Empty{
 	IsEmpty: true,
 }
 
@@ -49,32 +48,32 @@ type Field struct {
 	Initial       	interface{}
 	Default       	interface{}
 
-	Validators 		[]validators.Validator
+	Validators 		[]Validator
 	Parent     		BaseField
 	Context    		Context
 
 	BaseFieldStruct 	BaseField
 }
 
-func (f *Field) init(args *initArgs) {
-	defaultArgs := initArgs{
+func (f *Field) Init(args *InitArgs) {
+	defaultArgs := InitArgs{
 		"ReadOnly":  false,
 		"WriteOnly": false,
 		"Required":  false,
 		"FieldName": "",
 		"AllowNull": false,
-		"Label": "",
-		"Initial": nil,
-		"Context": nil,
-		"Default": empty,
+		"Label":     "",
+		"Initial":   nil,
+		"Context":   nil,
+		"Default":   EmptyValue,
 	}
 
-	var _args initArgs
+	var _args InitArgs
 
 	if args != nil {
 		_args = *args
 	} else {
-		_args = initArgs{}
+		_args = InitArgs{}
 	}
 
 	for k, v := range defaultArgs {
@@ -106,10 +105,10 @@ func (f *Field) init(args *initArgs) {
 		f.ErrorMessages = map[string]string{}
 	}
 
-	k, ok := f.BaseFieldStruct.(DefaultMessages)
+	k, ok := interface{}(f).(DefaultMessages)
 
 	if ok {
-		d := k.getDefaultMessages()
+		d := k.GetDefaultMessages()
 
 		for k, v := range *d {
 			f.ErrorMessages[k] = v
@@ -117,7 +116,7 @@ func (f *Field) init(args *initArgs) {
 	}
 }
 
-func (f *Field) getParent() BaseField {
+func (f *Field) GetParent() BaseField {
 	if f.Parent != nil {
 		p := f.Parent.(BaseField)
 
@@ -127,17 +126,17 @@ func (f *Field) getParent() BaseField {
 	return nil
 }
 
-func (f *Field) getRoot() BaseField {
+func (f *Field) GetRoot() BaseField {
 	var r BaseField = f
 
-	for r.getParent() != nil {
-		r = r.getParent()
+	for r.GetParent() != nil {
+		r = r.GetParent()
 	}
 
 	return r
 }
 
-func (f *Field) fail(key string) *errors.ValidationError {
+func (f *Field) Fail(key string) *errors.ValidationError {
 	msg := f.ErrorMessages[key]
 
 	err := errors.ValidationError{
@@ -148,21 +147,21 @@ func (f *Field) fail(key string) *errors.ValidationError {
 	return &err
 }
 
-func (f *Field) toInternalValue(data interface{}) (interface{}, *errors.ValidationError) {
+func (f *Field) ToInternalValue(data interface{}) (interface{}, *errors.ValidationError) {
 	panic("internal value not implemented")
 }
 
-func (f *Field) toRepresentation(data interface{}) interface{} {
+func (f *Field) ToRepresentation(data interface{}) interface{} {
 	panic("representation not implemented")
 }
 
-func (f *Field) isPartial() bool {
+func (f *Field) IsPartial() bool {
 	return f.Partial
 }
 
-func (f *Field) validateEmptyValues(data interface{}) (bool, interface{}) {
+func (f *Field) ValidateEmptyValues(data interface{}) (bool, interface{}) {
 	if f.ReadOnly {
-		return true, f.getDefault()
+		return true, f.GetDefault()
 	}
 
 	if _, ok := f.Default.(Empty); ok {
@@ -171,15 +170,15 @@ func (f *Field) validateEmptyValues(data interface{}) (bool, interface{}) {
 		}
 
 		if f.Required {
-			return false, f.fail("required")
+			return false, f.Fail("required")
 		}
 
-		return true, f.getDefault()
+		return true, f.GetDefault()
 	}
 
 	if data == nil {
 		if f.AllowNull == false {
-			return false, f.fail("null")
+			return false, f.Fail("null")
 		}
 
 		return true, nil
@@ -188,8 +187,8 @@ func (f *Field) validateEmptyValues(data interface{}) (bool, interface{}) {
 	return false, data
 }
 
-func (f *Field) getDefault() interface{} {
-	if _, ok := f.Default.(Empty); ok || f.Parent.isPartial() == false {
+func (f *Field) GetDefault() interface{} {
+	if _, ok := f.Default.(Empty); ok || f.Parent.IsPartial() == false {
 		return errors.SkipField{}
 	}
 
@@ -200,27 +199,27 @@ func (f *Field) getDefault() interface{} {
 	return f.Default
 }
 
-func (f *Field) runValidation(data interface{}) (interface{}, error) {
-	isEmptyValue, data := f.validateEmptyValues(data)
+func (f *Field) RunValidation(data interface{}) (interface{}, error) {
+	isEmptyValue, data := f.ValidateEmptyValues(data)
 
 	if isEmptyValue {
 		return data, nil
 	}
 
-	value, err := f.toInternalValue(data)
+	value, err := f.ToInternalValue(data)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if err := f.runValidators(data); err != nil {
+	if err := f.RunValidators(data); err != nil {
 		return nil, err
 	}
 
 	return value, nil
 }
 
-func (f *Field) runValidators(data interface{}) *errors.ValidationError {
+func (f *Field) RunValidators(data interface{}) *errors.ValidationError {
 	var errs []interface{}
 
 	for _, v := range f.Validators {

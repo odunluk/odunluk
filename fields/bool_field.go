@@ -29,13 +29,13 @@ type BooleanField struct {
 	Field
 }
 
-func (f *BooleanField) getDefaultMessages() *Messages {
+func (f *BooleanField) GetDefaultMessages() *Messages {
 	return &Messages{
 		"invalid": "Invalid boolean value",
 	}
 }
 
-func (f *BooleanField) toInternalValue(data interface{}) (interface{}, *errors.ValidationError) {
+func (f *BooleanField) ToInternalValue(data interface{}) (interface{}, *errors.ValidationError) {
 	for _, trueValue := range TRUE_VALUES {
 		if reflect.DeepEqual(trueValue, data) {
 			return true, nil
@@ -54,10 +54,10 @@ func (f *BooleanField) toInternalValue(data interface{}) (interface{}, *errors.V
 		}
 	}
 
-	return nil, f.fail("invalid")
+	return nil, f.Fail("invalid")
 }
 
-func (f *BooleanField) toRepresentation(data interface{}) interface{} {
+func (f *BooleanField) ToRepresentation(data interface{}) interface{} {
 	for _, trueValue := range TRUE_VALUES {
 		if reflect.DeepEqual(trueValue, data) {
 			return true
