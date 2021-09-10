@@ -11,10 +11,10 @@ func TestRoot(t *testing.T) {
 	var r BaseField = rootField
 
 	childField := Field{
-		Parent: r,
+		parent: r,
 	}
 
-	rootOutput := childField.GetRoot()
+	rootOutput := childField.Root()
 
 	if !reflect.DeepEqual(rootField, rootOutput) {
 		t.Fail()

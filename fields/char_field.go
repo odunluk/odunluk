@@ -10,20 +10,20 @@ import (
 type CharField struct {
 	Field
 
-	allowBlank		bool
-	trimWhiteSpace	bool
-	maxLength		*int
-	minLength		*int
+	AllowBlank     bool
+	TrimWhiteSpace bool
+	MaxLength      *int
+	MinLength      *int
 }
 
 func (f *CharField) Init(args *InitArgs) {
 	f.Field.Init(args)
 
 	defaultArgs := InitArgs{
-		"allowBlank": false,
-		"trimWhiteSpace": true,
-		"maxLength": nil,
-		"minLength": nil,
+		"AllowBlank":     false,
+		"TrimWhiteSpace": true,
+		"MaxLength":      nil,
+		"MinLength":      nil,
 	}
 
 	_args := *args
@@ -32,10 +32,10 @@ func (f *CharField) Init(args *InitArgs) {
 		_args[k] = v
 	}
 
-	f.AllowNull = _args["AllowNull"].(bool)
-	f.trimWhiteSpace = _args["trimWhiteSpace"].(bool)
-	f.maxLength = _args["maxLength"].(*int)
-	f.minLength = _args["minLength"].(*int)
+	f.AllowBlank = _args["AllowBlank"].(bool)
+	f.TrimWhiteSpace = _args["TrimWhiteSpace"].(bool)
+	f.MaxLength = _args["MaxLength"].(*int)
+	f.MinLength = _args["MinLength"].(*int)
 }
 
 func (f *CharField) GetDefaultMessages() *Messages {
@@ -49,12 +49,11 @@ func (f *CharField) ToInternalValue(data interface{}) (interface{}, *errors.Vali
 		return nil, f.Fail("invalid")
 	}
 
-	var str interface{}= fmt.Sprintf("%v", data)
+	var str interface{} = fmt.Sprintf("%v", data)
 
-	if f.trimWhiteSpace {
+	if f.TrimWhiteSpace {
 		str = strings.TrimSpace(str.(string))
 	}
 
 	return str, nil
 }
-

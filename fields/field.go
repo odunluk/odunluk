@@ -2,25 +2,65 @@ package fields
 
 import (
 	"github.com/odunluk/odunluk/v1/errors"
+	"github.com/odunluk/odunluk/v1/serializers"
 )
 
 type BaseField interface {
+	Parent() serializers.BaseSerializer
+	SetParent(parent serializers.BaseSerializer)
+
+	Validators() []Validator
+	SetValidators(validators []Validator)
+
+	Default() interface{}
+	SetDefault(_default interface{})
+
+	Initial() interface{}
+	SetInitial(initial interface{})
+
+	ErrorMessages() Messages
+	SetErrorMessages(errorMessages Messages)
+
+	Label() string
+	SetLabel(label string)
+
+	AllowNull() bool
+	SetAllowNull(allowNull bool)
+
+	FieldName() string
+	SetFieldName(fieldName string)
+
+	Required() bool
+	SetRequired(required bool)
+
+	WriteOnly() bool
+	SetWriteOnly(writeOnly bool)
+
+	ReadOnly() bool
+	SetReadOnly(readOnly bool)
+
 	Init(args *InitArgs)
-	GetRoot() BaseField
+	SetErrorMessage(key string, message string)
+
+	Root() serializers.BaseSerializer
+	Fail(key string) *errors.ValidationError
+
 	ToInternalValue(data interface{}) (interface{}, *errors.ValidationError)
-	ToRepresentation(interface{}) interface{}
-	GetParent() BaseField
-	IsPartial() bool
+	ToRepresentation(data interface{}) interface{}
+
+	ValidateEmptyValues(data interface{}) (bool, interface{})
+	GetDefault() interface{}
+	RunValidation(data interface{}) (interface{}, error)
+	RunValidators(data interface{}) *errors.ValidationError
 }
 
 type Messages map[string]string
-
-type Context map[string]interface{}
 
 type DefaultCaller func() interface{}
 
 type DefaultMessages interface {
 	GetDefaultMessages() *Messages
+	SetErrorMessage(key string, message string)
 }
 
 type InitArgs map[string]interface{}
@@ -33,39 +73,148 @@ var EmptyValue = Empty{
 	IsEmpty: true,
 }
 
+func IsEmptyValue(value interface{}) bool {
+	var v, ok = value.(Empty)
+
+	if ok {
+		return v.IsEmpty
+	}
+
+	return false
+}
+
+func InitField(field BaseField, args *InitArgs) BaseField {
+	field.Init(args)
+
+	k, ok := interface{}(field).(DefaultMessages)
+
+	if ok {
+		d := k.GetDefaultMessages()
+
+		for key, message := range *d {
+			k.SetErrorMessage(key, message)
+		}
+	}
+
+	return field
+}
+
 type Field struct {
 	BaseField
 
-	ReadOnly      	bool
-	WriteOnly     	bool
-	Required      	bool
-	Partial			bool
-	FieldName     	string
-	AllowNull     	bool
-	Label         	string
-	ErrorMessages 	Messages
+	readOnly      bool
+	writeOnly     bool
+	required      bool
+	fieldName     string
+	allowNull     bool
+	label         string
+	errorMessages Messages
 
-	Initial       	interface{}
-	Default       	interface{}
+	initial  interface{}
+	_default interface{}
 
-	Validators 		[]Validator
-	Parent     		BaseField
-	Context    		Context
+	validators []Validator
+	parent     serializers.BaseSerializer
+}
 
-	BaseFieldStruct 	BaseField
+func (f *Field) Parent() serializers.BaseSerializer {
+	return f.parent
+}
+
+func (f *Field) SetParent(parent serializers.BaseSerializer) {
+	f.parent = parent
+}
+
+func (f *Field) Validators() []Validator {
+	return f.validators
+}
+
+func (f *Field) SetValidators(validators []Validator) {
+	f.validators = validators
+}
+
+func (f *Field) Default() interface{} {
+	return f._default
+}
+
+func (f *Field) SetDefault(_default interface{}) {
+	f._default = _default
+}
+
+func (f *Field) Initial() interface{} {
+	return f.initial
+}
+
+func (f *Field) SetInitial(initial interface{}) {
+	f.initial = initial
+}
+
+func (f *Field) ErrorMessages() Messages {
+	return f.errorMessages
+}
+
+func (f *Field) SetErrorMessages(errorMessages Messages) {
+	f.errorMessages = errorMessages
+}
+
+func (f *Field) Label() string {
+	return f.label
+}
+
+func (f *Field) SetLabel(label string) {
+	f.label = label
+}
+
+func (f *Field) AllowNull() bool {
+	return f.allowNull
+}
+
+func (f *Field) SetAllowNull(allowNull bool) {
+	f.allowNull = allowNull
+}
+
+func (f *Field) FieldName() string {
+	return f.fieldName
+}
+
+func (f *Field) SetFieldName(fieldName string) {
+	f.fieldName = fieldName
+}
+
+func (f *Field) Required() bool {
+	return f.required
+}
+
+func (f *Field) SetRequired(required bool) {
+	f.required = required
+}
+
+func (f *Field) WriteOnly() bool {
+	return f.writeOnly
+}
+
+func (f *Field) SetWriteOnly(writeOnly bool) {
+	f.writeOnly = writeOnly
+}
+
+func (f *Field) ReadOnly() bool {
+	return f.readOnly
+}
+
+func (f *Field) SetReadOnly(readOnly bool) {
+	f.readOnly = readOnly
 }
 
 func (f *Field) Init(args *InitArgs) {
 	defaultArgs := InitArgs{
-		"ReadOnly":  false,
-		"WriteOnly": false,
-		"Required":  false,
-		"FieldName": "",
-		"AllowNull": false,
-		"Label":     "",
-		"Initial":   nil,
-		"Context":   nil,
-		"Default":   EmptyValue,
+		"readOnly":  false,
+		"writeOnly": false,
+		"required":  false,
+		"fieldName": "",
+		"allowNull": false,
+		"label":     "",
+		"initial":   nil,
+		"default":   EmptyValue,
 	}
 
 	var _args InitArgs
@@ -80,64 +229,45 @@ func (f *Field) Init(args *InitArgs) {
 		_args[k] = v
 	}
 
-	f.ReadOnly = _args["ReadOnly"].(bool)
-	f.WriteOnly = _args["WriteOnly"].(bool)
-	f.Required = _args["Required"].(bool)
-	f.FieldName = _args["FieldName"].(string)
-	f.AllowNull = _args["AllowNull"].(bool)
-	f.Label = _args["Label"].(string)
+	f.readOnly = _args["readOnly"].(bool)
+	f.writeOnly = _args["writeOnly"].(bool)
+	f.required = _args["required"].(bool)
+	f.fieldName = _args["fieldName"].(string)
+	f.allowNull = _args["allowNull"].(bool)
+	f.label = _args["label"].(string)
 
-	if _args["Initial"] != nil {
-		f.Initial = _args["Initial"]
+	if _args["initial"] != nil {
+		f.initial = _args["initial"]
 	}
-	if _args["Default"] != nil {
-		f.Default = _args["Default"]
-	}
-	if _args["Context"] != nil {
-		f.Context = _args["Context"].(Context)
+	if _args["default"] != nil {
+		f._default = _args["default"]
 	}
 
-	if f.ReadOnly && f.WriteOnly {
+	if f.readOnly && f.writeOnly {
 		panic("Read only, write only same time error")
 	}
 
-	if f.ErrorMessages == nil {
-		f.ErrorMessages = map[string]string{}
-	}
-
-	k, ok := interface{}(f).(DefaultMessages)
-
-	if ok {
-		d := k.GetDefaultMessages()
-
-		for k, v := range *d {
-			f.ErrorMessages[k] = v
-		}
+	if f.errorMessages == nil {
+		f.errorMessages = map[string]string{}
 	}
 }
 
-func (f *Field) GetParent() BaseField {
-	if f.Parent != nil {
-		p := f.Parent.(BaseField)
-
-		return p
-	}
-
-	return nil
+func (f *Field) SetErrorMessage(key string, message string)  {
+	f.errorMessages[key] = message
 }
 
-func (f *Field) GetRoot() BaseField {
-	var r BaseField = f
+func (f *Field) Root() serializers.BaseSerializer {
+	var r serializers.BaseSerializer = f.Parent()
 
-	for r.GetParent() != nil {
-		r = r.GetParent()
+	for r != nil {
+		r = r.Parent()
 	}
 
 	return r
 }
 
 func (f *Field) Fail(key string) *errors.ValidationError {
-	msg := f.ErrorMessages[key]
+	msg := f.errorMessages[key]
 
 	err := errors.ValidationError{
 		Detail: msg,
@@ -155,21 +285,17 @@ func (f *Field) ToRepresentation(data interface{}) interface{} {
 	panic("representation not implemented")
 }
 
-func (f *Field) IsPartial() bool {
-	return f.Partial
-}
-
 func (f *Field) ValidateEmptyValues(data interface{}) (bool, interface{}) {
-	if f.ReadOnly {
+	if f.readOnly {
 		return true, f.GetDefault()
 	}
 
-	if _, ok := f.Default.(Empty); ok {
-		if f.Partial == false {
+	if IsEmptyValue(f._default) {
+		if f.Root().IsPartial() == true {
 			return false, errors.SkipField{}
 		}
 
-		if f.Required {
+		if f.required {
 			return false, f.Fail("required")
 		}
 
@@ -177,7 +303,7 @@ func (f *Field) ValidateEmptyValues(data interface{}) (bool, interface{}) {
 	}
 
 	if data == nil {
-		if f.AllowNull == false {
+		if f.allowNull == false {
 			return false, f.Fail("null")
 		}
 
@@ -188,15 +314,15 @@ func (f *Field) ValidateEmptyValues(data interface{}) (bool, interface{}) {
 }
 
 func (f *Field) GetDefault() interface{} {
-	if _, ok := f.Default.(Empty); ok || f.Parent.IsPartial() == false {
+	if IsEmptyValue(f._default) || f.parent.IsPartial() == false {
 		return errors.SkipField{}
 	}
 
-	if d, ok := f.Default.(DefaultCaller); ok {
+	if d, ok := f._default.(DefaultCaller); ok {
 		return d()
 	}
 
-	return f.Default
+	return f._default
 }
 
 func (f *Field) RunValidation(data interface{}) (interface{}, error) {
@@ -222,7 +348,7 @@ func (f *Field) RunValidation(data interface{}) (interface{}, error) {
 func (f *Field) RunValidators(data interface{}) *errors.ValidationError {
 	var errs []interface{}
 
-	for _, v := range f.Validators {
+	for _, v := range f.validators {
 		err := v.Validate(data, f)
 
 		if err != nil {

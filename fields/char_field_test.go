@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestToInternalValue(t *testing.T) {
+func TestCharField_ToInternalValue(t *testing.T) {
 	f := &CharField{}
 
 	v, _ := f.ToInternalValue("foo")
